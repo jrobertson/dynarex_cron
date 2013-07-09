@@ -5,14 +5,17 @@
 require 'run_every'
 require 'dynarex'
 require 'chronic_cron'
+require 'simplepubsub'
+require 'rscript'
 
 TF = "%Y-%m-%d %H:%M"
 
 class DynarexCron
 
-  def initialize(dynarex_file)
+  def initialize(dynarex_file, sps_address=nil)
     @dynarex = Dynarex.new dynarex_file
     @dynarex.to_h.each {|h| h[:cron] = ChronicCron.new(h[:expression]) }
+    @sps_address = sps_address
   end
 
   def start
@@ -20,7 +23,7 @@ class DynarexCron
     RunEvery.new.minute do
       @dynarex.to_h.each do |h|
         if h[:cron].to_time.strftime(TF) == Time.now.strftime(TF) then
-          run(h[:job])
+          Thread.new { run(h[:job]) }
           h[:cron].next          
         end
       end
@@ -31,7 +34,31 @@ class DynarexCron
   private
 
   def run(job)
-    puts eval job
+
+    case job
+
+      when /^(run )/
+        code2, args = RScript.new.read ($').scan(/[^'"]+/).map(&:strip)
+        eval code2
+
+      when /^(pub\s*(?:lish)?\s+)/
+
+        return unless @sps_address
+        SimplePubSub::Client.connect(@sps_address) do |client|
+          topic, msg = ($').split(/:\s*/,2)
+          client.publish(topic, msg)
+        end
+
+      when /^`([^`]+)/
+        `#{$1}`
+
+      when %r{http://}
+        open(s, 'UserAgent' => 'DynarexCron v0.1')
+
+      else
+        puts eval(s)
+    end
+
   end
 
 end
