@@ -18,7 +18,7 @@ class DynarexCron
   end
 
   def start
-    puts '[' + Time.now.to_s + '] DynarexCron started'
+    puts '[' + Time.now.strftime(TF) + '] DynarexCron started'
     while true
       #puts Time.now.inspect
       @dynarex.to_h.each do |h|
