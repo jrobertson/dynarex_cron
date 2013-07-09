@@ -18,9 +18,7 @@ class DynarexCron
   end
 
   def start
-    puts '[' + Time.now.to_s + '] DynarexCron started'
     while true
-      #puts Time.now.inspect
       @dynarex.to_h.each do |h|
         if h[:cron].to_time.strftime(TF) == Time.now.strftime(TF) then
           Thread.new { run(h[:job]) }
