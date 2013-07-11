@@ -22,11 +22,10 @@ class DynarexCron
     while true
       #puts Time.now.inspect
       @dynarex.to_h.each do |h|
-        if h[:cron].to_time.strftime(TF) == Time.now.strftime(TF) then
+        if h[:cron].to_time.strftime(DF) == Time.now.strftime(DF) then
           Thread.new { run(h[:job]) }
           t = h[:cron].next
-          s2 = "next run time for job %s is %s" % [h[:job], t.strftime(TF)]
-          puts s2
+          s2 = "next run time for job %s is %s" % [h[:job], t.strftime(DF)]
         end
       end
       sleep 60 # wait for 60 seconds
