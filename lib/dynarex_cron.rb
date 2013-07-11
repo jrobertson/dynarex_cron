@@ -7,24 +7,26 @@ require 'chronic_cron'
 require 'simplepubsub'
 require 'rscript'
 
-TF = "%Y-%m-%d %H:%M"
+DF = "%Y-%m-%d %H:%M"
 
 class DynarexCron
 
   def initialize(dynarex_file, sps_address=nil)
     @dynarex = Dynarex.new dynarex_file
-    @dynarex.to_h.each {|h| h[:cron] = ChronicCron.new(h[:expression]) }
+    @dynarex.to_h.each {|h| puts 'h : ' + h.inspect; h[:cron] = ChronicCron.new(h[:expression]) }
     @sps_address = sps_address
   end
 
   def start
-    puts '[' + Time.now.strftime(TF) + '] DynarexCron started'
+    puts '[' + Time.now.strftime(DF) + '] DynarexCron started'
     while true
       #puts Time.now.inspect
       @dynarex.to_h.each do |h|
         if h[:cron].to_time.strftime(TF) == Time.now.strftime(TF) then
           Thread.new { run(h[:job]) }
-          h[:cron].next          
+          t = h[:cron].next
+          s2 = "next run time for job %s is %s" % [h[:job], t.strftime(TF)]
+          puts s2
         end
       end
       sleep 60 # wait for 60 seconds
@@ -56,7 +58,7 @@ class DynarexCron
         open(s, 'UserAgent' => 'DynarexCron v0.1')
 
       else
-        puts eval(s)
+        eval(s)
     end
 
   end
