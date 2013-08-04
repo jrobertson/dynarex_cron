@@ -12,20 +12,21 @@ DF = "%Y-%m-%d %H:%M"
 class DynarexCron
 
   def initialize(dynarex_file, sps_address=nil)
-    @dynarex = Dynarex.new dynarex_file
-    @dynarex.to_h.each {|h|  h[:cron] = ChronicCron.new(h[:expression]) }
+    dynarex = Dynarex.new dynarex_file
+    @cron_entries = dynarex.to_h
+    @cron_entries.each {|h| h[:cron] = ChronicCron.new(h[:expression]) }
     @sps_address = sps_address
   end
 
   def start
     puts '[' + Time.now.strftime(DF) + '] DynarexCron started'
+
     while true
       #puts Time.now.inspect
-      @dynarex.to_h.each do |h|
+      @cron_entries.each do |h|
         if h[:cron].to_time.strftime(DF) == Time.now.strftime(DF) then
           Thread.new { run(h[:job]) }
-          t = h[:cron].next
-          s2 = "next run time for job %s is %s" % [h[:job], t.strftime(DF)]
+          h[:cron].next # advances the time
         end
       end
       sleep 60 # wait for 60 seconds
