@@ -6,7 +6,7 @@ require 'dynarex'
 require 'chronic_cron'
 require 'simplepubsub'
 require 'rscript'
-require 'dynarex-events'
+require 'chronic_duration'
 
 DF = "%Y-%m-%d %H:%M"
 

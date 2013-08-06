@@ -167,7 +167,7 @@ class DynarexEvents < DynarexCron
     
     @entries.inject([]) do |r,h| 
 
-      h[:cron] = ChronicCron.new(h[:date]) 
+      h[:cron] = ChronicCron.new(h[:date] + ' ' + h[:recurring]) 
       h[:job] = 'pub event: ' + h[:title]
 
       if h[:reminder].length > 0 then
