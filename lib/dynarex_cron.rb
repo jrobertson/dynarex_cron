@@ -14,7 +14,8 @@ class DynarexCron
 
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil, drb_server: false}.merge options
+    opt = {sps_address: nil, drb_server: false, log: nil}.merge options
+    @logger = Logger.new(opt[:log],'weekly') if opt[:log]
     
     @cron_entries, @cron_events  = [], []
     
@@ -81,7 +82,13 @@ class DynarexCron
       if h[:cron].to_time.strftime(DF) == Time.now.strftime(DF) then
         
         Thread.new { run(h[:job]) }
-        h[:cron].next # advances the time
+        begin
+          h[:cron].next # advances the time
+        rescue
+          
+          @logger.debug h.inspect ' : ' + ($!) if @logger
+        end
+        
       end
     end        
   end  
@@ -167,12 +174,13 @@ class DynarexEvents < DynarexCron
     
     @entries.inject([]) do |r,h| 
 
-      h[:cron] = ChronicCron.new(h[:date] + ' ' + h[:recurring]) 
+      h[:cron] = ChronicCron.new(h[:date]) 
       h[:job] = 'pub event: ' + h[:title]
 
       if h[:reminder].length > 0 then
         rmndr = {}
-        rmndr[:cron] = ChronicCron.new((Chronic.parse(h[:date]) - ChronicDuration.parse(h[:reminder])).to_s)
+        rmndr[:cron] = ChronicCron.new((Chronic.parse(h[:date]) - 
+                                     ChronicDuration.parse(h[:reminder])).to_s)
         rmndr[:job] = 'pub event: reminder ' + h[:title]
         r << rmndr
       end
