@@ -85,10 +85,10 @@ class DynarexCron
         begin
           h[:cron].next # advances the time
         rescue
-          if @logger then
-            @logger.debug h.inspect ' : ' + ($!)
-          end
+          
+          @logger.debug h.inspect ' : ' + ($!) if @logger
         end
+        
       end
     end        
   end  

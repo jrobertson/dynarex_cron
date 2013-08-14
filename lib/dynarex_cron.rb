@@ -7,6 +7,7 @@ require 'chronic_cron'
 require 'simplepubsub'
 require 'rscript'
 require 'chronic_duration'
+require 'logger'
 
 DF = "%Y-%m-%d %H:%M"
 
