@@ -17,7 +17,7 @@ class DynarexCron
   #
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil, sps_port='59000', drb_port: nil, log: nil}\
+    opt = {sps_address: nil, sps_port: '59000', drb_port: nil, log: nil}\
       .merge options
     @logger = Logger.new(opt[:log],'weekly') if opt[:log]
     
