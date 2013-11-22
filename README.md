@@ -6,12 +6,9 @@
     <?dynarex schema="entries[title]/entry(expression, job, description)" format_mask="[!expression][.,] [!job] # [!description]"?>
     title: A Sample Dynarex Cron file
 
-    at 10:30pm on every Monday. Time.now.to_s
-    at 10:30pm on every Friday. %(fun ) + Time.now.to_s
-    every 10 minutes. `date > /home/james/hello`
+    at 10:54pm every day, pub aida: set light off
     every 2 minutes. publish magic: testing 123 simplepubsub
-    */5 * * * *. `/usr/bin/ruby /home/james/ruby/network_check.rb`
-    on 8th August at 10:30am, run //job:download_rss_enclosure http://a0.jamesrobertson.eu/qbx/r/audio.rsf http://feed.nashownotes.com/rss.xml na
+    9:00-18:00 every day, pub fortina: pips # play the hourly pips
     CRON
 
     dc = DynarexCron.new(Dynarex.parse crontab)
@@ -19,5 +16,8 @@
 
 The above example runs a scheduler which checks for jobs to run every minute.
 
-dynarexcron gem crontab cron
+## Resources
 
+* [jrobertson/dynarex_cron](https://github.com/jrobertson/dynarex_cron)
+
+dynarexcron gem crontab cron
