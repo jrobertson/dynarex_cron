@@ -49,11 +49,11 @@ class DynarexCron
     puts '[' + Time.now.strftime(DF) + '] DynarexCron started'    
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
 
-    @ws = WebSocket::EventMachine::Client
+    c = WebSocket::EventMachine::Client
 
     EventMachine.run do
 
-      @ws.connect(params)
+      @ws = c.connect(params)
 
       EM.add_periodic_timer(60) do
         iterate @cron_entries
@@ -144,11 +144,11 @@ class DynarexEvents < DynarexCron
     puts '[' + Time.now.strftime(DF) + '] DynarexEvents started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
 
-    @ws = WebSocket::EventMachine::Client
+    c = WebSocket::EventMachine::Client
 
     EventMachine.run do
 
-      @ws.connect(params)
+      @ws = c.connect(params)
 
       EM.add_periodic_timer(60) do
         iterate @cron_events
