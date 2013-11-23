@@ -96,7 +96,10 @@ class DynarexCron
       
       if h[:cron].to_time.strftime(DF) == Time.now.strftime(DF) then
         
-        topic, msg = h[:job].match(/^pub(?:lish)\s+([^:]+):(.*)/).captures
+        r = h[:job].match(/^pub(?:lish)?\s+([^:]+):(.*)/)
+
+        next unless r
+        topic, msg = r.captures
         @ws.send "%s: %s" % [topic, msg]
 
         begin
