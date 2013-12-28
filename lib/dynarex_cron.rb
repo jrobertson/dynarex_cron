@@ -17,9 +17,13 @@ class DynarexCron
   #
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil, sps_port: '59000', drb_port: nil, log: nil}\
-      .merge options
+    opt = {sps_address: 'sps', sps_port: '59000', drb_port: nil, \
+      log: nil, time_offset: 0}.merge options
     @logger = Logger.new(opt[:log],'weekly') if opt[:log]
+
+    # time_offset: used for testing a cron entry without having to change 
+    #              the time of each entry
+    @time_offset = opt[:time_offset].to_i
     
     @cron_entries, @cron_events  = [], []
     
@@ -46,7 +50,7 @@ class DynarexCron
   def start
 
     @running = true
-    puts '[' + Time.now.strftime(DF) + '] DynarexCron started'    
+    puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
 
     c = WebSocket::EventMachine::Client
@@ -71,11 +75,14 @@ class DynarexCron
   
   def load_entries()
     
-    dynarex = Dynarex.new @dynarex_file
+    dynarex = @dynarex_file.is_a?(Dynarex) ? @dynarex_file : \
+                                        Dynarex.new(@dynarex_file)
     
     @include_url = dynarex.summary[:include]
     @cron_entries = dynarex.to_h
-    @cron_entries.each {|h| h[:cron] = ChronicCron.new(h[:expression]) }    
+    @cron_entries.each do |h| 
+      h[:cron] = ChronicCron.new(h[:expression], Time.now + @time_offset)
+    end
   end
   
   alias refresh_entries load_entries
@@ -94,16 +101,20 @@ class DynarexCron
     
     cron_entries.each do |h|
       
-      if h[:cron].to_time.strftime(DF) == Time.now.strftime(DF) then
+      datetime = (Time.now + @time_offset).strftime(DF)
+
+      if h[:cron].to_time.strftime(DF) == datetime then
         
         r = h[:job].match(/^pub(?:lish)?\s+([^:]+):(.*)/)
 
         next unless r
-        topic, msg = r.captures
-        @ws.send "%s: %s" % [topic, msg]
 
         begin
+
+          topic, msg = r.captures
+          @ws.send "%s: %s" % [topic, msg]
           h[:cron].next # advances the time
+
         rescue
           
           @logger.debug h.inspect ' : ' + ($!) if @logger
@@ -164,13 +175,14 @@ class DynarexEvents < DynarexCron
     
     @entries.inject([]) do |r,h| 
 
-      h[:cron] = ChronicCron.new(h[:date]) 
+      time = Time.now + @time_offset
+      h[:cron] = ChronicCron.new(h[:date], time) 
       h[:job] = 'pub event: ' + h[:title]
 
       if h[:reminder].length > 0 then
         rmndr = {}
         rmndr[:cron] = ChronicCron.new((Chronic.parse(h[:date]) - 
-                                     ChronicDuration.parse(h[:reminder])).to_s)
+                              ChronicDuration.parse(h[:reminder])).to_s, time)
         rmndr[:job] = 'pub event: reminder ' + h[:title]
         r << rmndr
       end
