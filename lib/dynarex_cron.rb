@@ -132,8 +132,9 @@ class DynarexEvents < DynarexCron
 
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil}.merge options
+    opt = {sps_address: nil, time_offset: 0}.merge options
     
+    @time_offset = opt[:time_offset]
     @cron_events  = []
     
     @dynarex_file = dynarex_file
