@@ -4,18 +4,26 @@
 
 require 'dynarex'
 require 'chronic_cron'
-require 'simplepubsub'
+require 'websocket-eventmachine-client'
 require 'rscript'
 require 'chronic_duration'
+require 'logger'
 
 DF = "%Y-%m-%d %H:%M"
 
 class DynarexCron
 
+  # options: e.g. sps_address: 'sps', sps_port: '59000'
+  #
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil, drb_server: false, log: nil}.merge options
+    opt = {sps_address: 'sps', sps_port: '59000', drb_port: nil, \
+      log: nil, time_offset: 0}.merge options
     @logger = Logger.new(opt[:log],'weekly') if opt[:log]
+
+    # time_offset: used for testing a cron entry without having to change 
+    #              the time of each entry
+    @time_offset = opt[:time_offset].to_i
     
     @cron_entries, @cron_events  = [], []
     
@@ -23,44 +31,58 @@ class DynarexCron
     load_entries() if @dynarex_file    
     load_events() if @include_url
 
-    @sps_address = opt[:sps_address]
-    
-    if opt[:drb_server] == true then
-      
+    @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
+
+    if opt[:drb_port] then
+
       Thread.new {
         
         # start up the DRb service
-        DRb.start_service 'druby://:57000', self
+        DRb.start_service 'druby://:' + opt[:drb_port], self
 
         # wait for the DRb service to finish before exiting
         DRb.thread.join    
       }
-    end
+    end    
+
   end
 
   def start
-    @running = true
-    puts '[' + Time.now.strftime(DF) + '] DynarexCron started'
-    
-    while @running == true
 
-      iterate @cron_entries
-      iterate @cron_events
-      sleep 60 # wait for 60 seconds
+    @running = true
+    puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
+    params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
+
+    c = WebSocket::EventMachine::Client
+
+    EventMachine.run do
+
+      @ws = c.connect(params)
+
+      EM.add_periodic_timer(60) do
+        iterate @cron_entries
+        iterate @cron_events
+      end
     end
+
   end
   
   def stop()
     @running = false
+    @ws.close
+    EM.stop_event_loop
   end
   
   def load_entries()
     
-    dynarex = Dynarex.new @dynarex_file
+    dynarex = @dynarex_file.is_a?(Dynarex) ? @dynarex_file : \
+                                        Dynarex.new(@dynarex_file)
     
     @include_url = dynarex.summary[:include]
     @cron_entries = dynarex.to_h
-    @cron_entries.each {|h| h[:cron] = ChronicCron.new(h[:expression]) }    
+    @cron_entries.each do |h| 
+      h[:cron] = ChronicCron.new(h[:expression], Time.now + @time_offset)
+    end
   end
   
   alias refresh_entries load_entries
@@ -79,11 +101,20 @@ class DynarexCron
     
     cron_entries.each do |h|
       
-      if h[:cron].to_time.strftime(DF) == Time.now.strftime(DF) then
+      datetime = (Time.now + @time_offset).strftime(DF)
+
+      if h[:cron].to_time.strftime(DF) == datetime then
         
-        Thread.new { run(h[:job]) }
+        r = h[:job].match(/^pub(?:lish)?\s+([^:]+):(.*)/)
+
+        next unless r
+
         begin
+
+          topic, msg = r.captures
+          @ws.send "%s: %s" % [topic, msg]
           h[:cron].next # advances the time
+
         rescue
           
           @logger.debug h.inspect ' : ' + ($!) if @logger
@@ -91,36 +122,8 @@ class DynarexCron
         
       end
     end        
-  end  
+  end   
   
-  def run(job)
-
-    case job
-
-      when /^(run )/
-        code2, args = RScript.new.read ($').scan(/[^'"]+/).map(&:strip)
-        eval code2
-
-      when /^(pub\s*(?:lish)?\s+)/
-
-        return unless @sps_address
-        SimplePubSub::Client.connect(@sps_address) do |client|
-          topic, msg = ($').split(/:\s*/,2)
-          client.publish(topic, msg)
-        end
-
-      when /^`([^`]+)/
-        `#{$1}`
-
-      when %r{http://}
-        open(s, 'UserAgent' => 'DynarexCron v0.1')
-
-      else
-        eval(s)
-    end
-
-  end
-
 end
 
 class DynarexEvents < DynarexCron
@@ -129,8 +132,9 @@ class DynarexEvents < DynarexCron
 
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil, drb_server: false}.merge options
+    opt = {sps_address: nil, time_offset: 0}.merge options
     
+    @time_offset = opt[:time_offset]
     @cron_events  = []
     
     @dynarex_file = dynarex_file
@@ -138,17 +142,6 @@ class DynarexEvents < DynarexCron
 
     @sps_address = opt[:sps_address]
     
-    if opt[:drb_server] == true then
-      
-      Thread.new {
-        
-        # start up the DRb service
-        DRb.start_service 'druby://:57500', self
-
-        # wait for the DRb service to finish before exiting
-        DRb.thread.join    
-      }
-    end
   end    
 
   def load_events()
@@ -161,12 +154,21 @@ class DynarexEvents < DynarexCron
   alias refresh load_events
   
   def start
+
     @running = true
     puts '[' + Time.now.strftime(DF) + '] DynarexEvents started'
-    
-    while @running == true
-      iterate @cron_events
-      sleep 60 # wait for 60 seconds
+    params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
+
+    c = WebSocket::EventMachine::Client
+
+    EventMachine.run do
+
+      @ws = c.connect(params)
+
+      EM.add_periodic_timer(60) do
+        iterate @cron_events
+      end
+
     end
   end  
   
@@ -174,13 +176,14 @@ class DynarexEvents < DynarexCron
     
     @entries.inject([]) do |r,h| 
 
-      h[:cron] = ChronicCron.new(h[:date]) 
+      time = Time.now + @time_offset
+      h[:cron] = ChronicCron.new(h[:date], time) 
       h[:job] = 'pub event: ' + h[:title]
 
       if h[:reminder].length > 0 then
         rmndr = {}
         rmndr[:cron] = ChronicCron.new((Chronic.parse(h[:date]) - 
-                                     ChronicDuration.parse(h[:reminder])).to_s)
+                              ChronicDuration.parse(h[:reminder])).to_s, time)
         rmndr[:job] = 'pub event: reminder ' + h[:title]
         r << rmndr
       end

@@ -1,17 +1,18 @@
 Gem::Specification.new do |s|
   s.name = 'dynarex_cron'
-  s.version = '0.3.5'
+  s.version = '0.4.0'
   s.summary = 'dynarex_cron'
   s.authors = ['James Robertson']
   s.files = Dir['lib/**/*.rb']
-  s.add_dependency('dynarex')
-  s.add_dependency('chronic_cron')
-  s.add_dependency('websocket-eventmachine-client')  
-  s.add_dependency('rscript')
-  s.add_dependency('chronic_duration')
+  s.add_runtime_dependency('dynarex', '~> 1.2', '>=1.2.90')
+  s.add_runtime_dependency('chronic_cron', '~> 0.2', '>=0.2.33')
+  s.add_runtime_dependency('websocket-eventmachine-client', '~> 1.0', '>=1.0.1')  
+  s.add_runtime_dependency('rscript', '~> 0.1', '>=0.1.25')
+  s.add_runtime_dependency('chronic_duration', '~> 0.10', '>=0.10.4')
   s.signing_key = '../privatekeys/dynarex_cron.pem'
   s.cert_chain  = ['gem-public_cert.pem']  
   s.license = 'MIT'
   s.email = 'james@r0bertson.co.uk'
   s.homepage = 'https://github.com/jrobertson/dynarex_cron'
+  s.required_ruby_version = '>= 2.1.2'
 end

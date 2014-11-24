@@ -17,7 +17,7 @@ class DynarexCron
   #
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: 'sps', sps_port: '59000', drb_port: nil, \
+    opt = {sps_address: 'sps', sps_port: '59000',  \
       log: nil, time_offset: 0}.merge options
     @logger = Logger.new(opt[:log],'weekly') if opt[:log]
 
@@ -28,22 +28,17 @@ class DynarexCron
     @cron_entries, @cron_events  = [], []
     
     @dynarex_file = dynarex_file
-    load_entries() if @dynarex_file    
+
+    if @dynarex_file then
+
+      dynarex = load_doc dynarex_file
+      load_entries(dynarex)
+    end 
+
     load_events() if @include_url
 
     @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
 
-    if opt[:drb_port] then
-
-      Thread.new {
-        
-        # start up the DRb service
-        DRb.start_service 'druby://:' + opt[:drb_port], self
-
-        # wait for the DRb service to finish before exiting
-        DRb.thread.join    
-      }
-    end    
 
   end
 
@@ -60,8 +55,16 @@ class DynarexCron
       @ws = c.connect(params)
 
       EM.add_periodic_timer(60) do
+
         iterate @cron_entries
         iterate @cron_events
+
+        if @dynarex_file.is_a? String then
+
+          buffer, _ = RXFHelper.read(@dynarex_file)
+          reload_entries buffer if @buffer != buffer
+
+        end
       end
     end
 
@@ -73,35 +76,46 @@ class DynarexCron
     EM.stop_event_loop
   end
   
-  def load_entries()
-    
-    dynarex = @dynarex_file.is_a?(Dynarex) ? @dynarex_file : \
-                                        Dynarex.new(@dynarex_file)
-    
+  private
+
+  def load_doc(dynarex_file)
+
+    if dynarex_file.is_a?(Dynarex) then
+      dynarex_file
+    else
+      @buffer, _ = RXFHelper.read(dynarex_file)
+      Dynarex.new @buffer
+    end
+        
+  end
+
+  def load_entries(dynarex)
+        
     @include_url = dynarex.summary[:include]
     @cron_entries = dynarex.to_h
     @cron_entries.each do |h| 
       h[:cron] = ChronicCron.new(h[:expression], Time.now + @time_offset)
     end
-  end
-  
-  alias refresh_entries load_entries
+  end  
   
   def load_events()
     
     de = DynarexEvents.new(@include_url)
     @cron_events = de.to_a
-  end
-  
-  alias refresh_events load_events  
+  end  
 
-  private
+  def log(s, method_name=:debug)
+    return unless @logger
+    @logger.method(method_name).call s
+  end
 
   def iterate(cron_entries)
     
     cron_entries.each do |h|
       
       datetime = (Time.now + @time_offset).strftime(DF)
+      log "datetime: %s; crontime: %s" % 
+                              [datetime, h[:cron].to_time.strftime(DF)]
 
       if h[:cron].to_time.strftime(DF) == datetime then
         
@@ -117,11 +131,17 @@ class DynarexCron
 
         rescue
           
-          @logger.debug h.inspect ' : ' + ($!) if @logger
+          log h.inspect ' : ' + ($!)
         end
         
       end
     end        
+  end
+
+  def reload_entries(buffer)    
+    load_entries Dynarex.new(buffer)
+    @buffer = buffer
+    log 'crontab reloaded', :info
   end   
   
 end
