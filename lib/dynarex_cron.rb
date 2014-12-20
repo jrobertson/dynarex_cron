@@ -4,10 +4,12 @@
 
 require 'dynarex'
 require 'chronic_cron'
-require 'websocket-eventmachine-client'
 require 'rscript'
 require 'chronic_duration'
 require 'logger'
+require 'run_every'
+require 'sps-pub'
+
 
 DF = "%Y-%m-%d %H:%M"
 
@@ -48,32 +50,24 @@ class DynarexCron
     puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
 
-    c = WebSocket::EventMachine::Client
+    RunEvery.new(seconds: 60) do
 
-    EventMachine.run do
+      iterate @cron_entries
+      iterate @cron_events
 
-      @ws = c.connect(params)
+      if @dynarex_file.is_a? String then
 
-      EM.add_periodic_timer(60) do
+        buffer, _ = RXFHelper.read(@dynarex_file)
+        reload_entries buffer if @buffer != buffer
 
-        iterate @cron_entries
-        iterate @cron_events
-
-        if @dynarex_file.is_a? String then
-
-          buffer, _ = RXFHelper.read(@dynarex_file)
-          reload_entries buffer if @buffer != buffer
-
-        end
       end
+
     end
 
   end
   
   def stop()
     @running = false
-    @ws.close
-    EM.stop_event_loop
   end
   
   private
@@ -92,6 +86,12 @@ class DynarexCron
   def load_entries(dynarex)
         
     @include_url = dynarex.summary[:include]
+    
+    if dynarex.summary[:sps_address] then
+      @sps_address, @sps_port = dynarex.summary[:sps_address]\
+                                                    .split(':',2) << '59000'
+    end
+    
     @cron_entries = dynarex.to_h
     @cron_entries.each do |h| 
       h[:cron] = ChronicCron.new(h[:expression], Time.now + @time_offset)
@@ -126,7 +126,8 @@ class DynarexCron
         begin
 
           topic, msg = r.captures
-          @ws.send "%s: %s" % [topic, msg]
+          #@ws.send "%s: %s" % [topic, msg]
+          SPSPub.notice "%s: %s" % [topic, msg], address: @sps_address, port: @sps_port
           h[:cron].next # advances the time
 
         rescue
@@ -179,17 +180,8 @@ class DynarexEvents < DynarexCron
     puts '[' + Time.now.strftime(DF) + '] DynarexEvents started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
 
-    c = WebSocket::EventMachine::Client
-
-    EventMachine.run do
-
-      @ws = c.connect(params)
-
-      EM.add_periodic_timer(60) do
-        iterate @cron_events
-      end
-
-    end
+    RunEvery.new(seconds: 60) { iterate @cron_events }
+    
   end  
   
   def to_a()
