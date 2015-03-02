@@ -50,33 +50,24 @@ class DynarexCron
     puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
 
-    #c = WebSocket::EventMachine::Client
-
-    #EventMachine.run do
     RunEvery.new(seconds: 60) do
 
-      #@ws = c.connect(params)
+      iterate @cron_entries
+      iterate @cron_events
 
-      #EM.add_periodic_timer(60) do
+      if @dynarex_file.is_a? String then
 
-        iterate @cron_entries
-        iterate @cron_events
+        buffer, _ = RXFHelper.read(@dynarex_file)
+        reload_entries buffer if @buffer != buffer
 
-        if @dynarex_file.is_a? String then
+      end
 
-          buffer, _ = RXFHelper.read(@dynarex_file)
-          reload_entries buffer if @buffer != buffer
-
-        end
-      #end
     end
 
   end
   
   def stop()
     @running = false
-    #@ws.close
-    #EM.stop_event_loop
   end
   
   private
@@ -189,17 +180,8 @@ class DynarexEvents < DynarexCron
     puts '[' + Time.now.strftime(DF) + '] DynarexEvents started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
 
-    c = WebSocket::EventMachine::Client
-
-    EventMachine.run do
-
-      @ws = c.connect(params)
-
-      EM.add_periodic_timer(60) do
-        iterate @cron_events
-      end
-
-    end
+    RunEvery.new(seconds: 60) { iterate @cron_events }
+    
   end  
   
   def to_a()

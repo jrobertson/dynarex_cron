@@ -37,7 +37,7 @@ class DynarexCron
       load_entries(dynarex)
     end 
 
-    load_events() if @include_url
+    load_events() if @include_url and @include_url.length > 0
 
     @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
 
