@@ -57,7 +57,14 @@ class DynarexCron
 
       if @dynarex_file.is_a? String then
 
-        buffer, _ = RXFHelper.read(@dynarex_file)
+        # What happens is the @dynarex_file is a URL and the web server is 
+        # temporarily unavailable? i.e. 503 Service Temporarily Unavailable
+        begin
+          buffer, _ = RXFHelper.read(@dynarex_file)
+        rescue
+          puts 'dynarex_cron: warning: ' + ($!).inspect           
+        end
+        
         reload_entries buffer if @buffer != buffer
 
       end
@@ -84,7 +91,7 @@ class DynarexCron
   end
 
   def load_entries(dynarex)
-        
+
     @include_url = dynarex.summary[:include]
     
     if dynarex.summary[:sps_address] then
@@ -114,35 +121,38 @@ class DynarexCron
     cron_entries.each do |h|
       
       datetime = (Time.now + @time_offset).strftime(DF)
-      log "datetime: %s; crontime: %s" % 
-                              [datetime, h[:cron].to_time.strftime(DF)]
-
+      log "datetime: %s; h: %s" % [datetime, h.inspect]
+      
       if h[:cron].to_time.strftime(DF) == datetime then
-        
+
         r = h[:job].match(/^pub(?:lish)?\s+([^:]+):(.*)/)
 
         next unless r
-
-        begin
-
-          topic, msg = r.captures
-          #@ws.send "%s: %s" % [topic, msg]
-          SPSPub.notice "%s: %s" % [topic, msg], address: @sps_address, port: @sps_port
-          h[:cron].next # advances the time
-
-        rescue
           
-          log h.inspect ' : ' + ($!)
+          topic, msg = r.captures
+
+          log "sps_Address: %s sps_port: %s topic: %s message: %s" % \
+                                        [@sps_address, @sps_port, topic, msg]
+        begin
+          
+          SPSPub.notice "%s: %s" % \
+                          [topic, msg], address: @sps_address, port:@sps_port
+          log 'before cron next', :info
+          h[:cron].next # advances the time
+        rescue
+            
+          log h.inspect ' : ' + ($!).inspect
         end
-        
+            
       end
-    end        
+              
+    end
   end
 
   def reload_entries(buffer)    
+
     load_entries Dynarex.new(buffer)
     @buffer = buffer
-    log 'crontab reloaded', :info
   end   
   
 end
