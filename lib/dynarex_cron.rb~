@@ -125,18 +125,11 @@ class DynarexCron
       
       if h[:cron].to_time.strftime(DF) == datetime then
 
-        r = h[:job].match(/^pub(?:lish)?\s+([^:]+):(.*)/)
-
-        next unless r
-          
-          topic, msg = r.captures
-
-          log "sps_Address: %s sps_port: %s topic: %s message: %s" % \
-                                        [@sps_address, @sps_port, topic, msg]
+        log "sps_Address: %s sps_port: %s fqm: %s" % \
+                                        [@sps_address, @sps_port, h[:fqm]]
         begin
           
-          SPSPub.notice "%s: %s" % \
-                          [topic, msg], address: @sps_address, port:@sps_port
+          SPSPub.notice h[:fqm], address: @sps_address, port:@sps_port
           log 'before cron next', :info
           h[:cron].next # advances the time
         rescue
@@ -200,13 +193,13 @@ class DynarexEvents < DynarexCron
 
       time = Time.now + @time_offset
       h[:cron] = ChronicCron.new(h[:date], time) 
-      h[:job] = 'pub event: ' + h[:title]
+      h[:fqm] = 'event: ' + h[:title]
 
       if h[:reminder].length > 0 then
         rmndr = {}
         rmndr[:cron] = ChronicCron.new((Chronic.parse(h[:date]) - 
                               ChronicDuration.parse(h[:reminder])).to_s, time)
-        rmndr[:job] = 'pub event: reminder ' + h[:title]
+        rmndr[:fqm] = 'event: reminder ' + h[:title]
         r << rmndr
       end
 
