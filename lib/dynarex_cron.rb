@@ -25,7 +25,7 @@ class DynarexCron
     #              the time of each entry
     @time_offset = opt[:time_offset].to_i
     
-    @cron_entries, @cron_events  = [], []
+    @cron_entries = []
     
     @dynarex_file = dynarex_file
 
@@ -34,8 +34,6 @@ class DynarexCron
       dynarex = load_doc dynarex_file
       load_entries(dynarex)
     end 
-
-    load_events() if @include_url and @include_url.length > 0
 
     @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
 
@@ -51,11 +49,10 @@ class DynarexCron
     RunEvery.new(seconds: 60) do
 
       iterate @cron_entries
-      iterate @cron_events
 
       if @dynarex_file.is_a? String then
 
-        # What happens is the @dynarex_file is a URL and the web server is 
+        # What happens if the @dynarex_file is a URL and the web server is 
         # temporarily unavailable? i.e. 503 Service Temporarily Unavailable
         begin
           buffer, _ = RXFHelper.read(@dynarex_file)
@@ -89,8 +86,6 @@ class DynarexCron
   end
 
   def load_entries(dynarex)
-
-    @include_url = dynarex.summary[:include]
     
     if dynarex.summary[:sps_address] then
       @sps_address, @sps_port = dynarex.summary[:sps_address]\
@@ -103,12 +98,6 @@ class DynarexCron
     end
   end  
   
-  def load_events()
-    
-    de = DynarexEvents.new(@include_url)
-    @cron_events = de.to_a
-  end  
-
   def log(s, method_name=:debug)
     return unless @logger
     @logger.method(method_name).call s
