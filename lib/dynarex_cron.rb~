@@ -57,7 +57,7 @@ class DynarexCron
 
       if @dynarex_file.is_a? String then
 
-        # What happens is the @dynarex)file is a URL and the web server is 
+        # What happens is the @dynarex_file is a URL and the web server is 
         # temporarily unavailable? i.e. 503 Service Temporarily Unavailable
         begin
           buffer, _ = RXFHelper.read(@dynarex_file)
