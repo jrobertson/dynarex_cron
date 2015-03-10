@@ -4,7 +4,6 @@
 
 require 'dynarex'
 require 'chronic_cron'
-require 'logger'
 require 'run_every'
 require 'sps-pub'
 
@@ -116,7 +115,8 @@ class DynarexCron
                                         [@sps_address, @sps_port, h[:fqm]]
         begin
           
-          SPSPub.notice h[:fqm], address: @sps_address, port:@sps_port
+          SPSPub.notice h[:fqm].gsub('!Time',Time.now.strftime("%H:%M")), \
+                                          address: @sps_address, port:@sps_port
           log 'before cron next', :info
           h[:cron].next # advances the time
         rescue
