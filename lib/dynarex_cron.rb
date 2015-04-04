@@ -6,6 +6,7 @@ require 'dynarex'
 require 'chronic_cron'
 require 'run_every'
 require 'sps-pub'
+require 'logger'
 
 
 DF = "%Y-%m-%d %H:%M"
