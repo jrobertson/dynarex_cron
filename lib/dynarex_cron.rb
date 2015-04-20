@@ -4,7 +4,6 @@
 
 require 'dynarex'
 require 'chronic_cron'
-require 'run_every'
 require 'sps-pub'
 require 'logger'
 
@@ -46,7 +45,10 @@ class DynarexCron
     puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
 
-    RunEvery.new(seconds: 60) do
+    sleep 1 until Time.now.sec == 0
+
+    # the following loop runs every minute
+    while true do
 
       iterate @cron_entries
 
@@ -64,6 +66,8 @@ class DynarexCron
 
       end
 
+      sleep 1
+      sleep 1 until Time.now.sec == 0
     end
 
   end
