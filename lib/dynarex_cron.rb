@@ -66,8 +66,9 @@ class DynarexCron
 
       end
 
+      min = Time.now.min
       sleep 1
-      sleep 1 until Time.now.sec == 0
+      sleep 1 until Time.now.sec < 10 and Time.now.min != min
     end
 
   end
