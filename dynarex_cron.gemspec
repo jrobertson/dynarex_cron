@@ -1,12 +1,12 @@
 Gem::Specification.new do |s|
   s.name = 'dynarex_cron'
-  s.version = '0.7.1'
-  s.summary = 'dynarex_cron'
+  s.version = '0.8.0'
+  s.summary = 'Publishes SimplePubSub messages by reading cron entries from a Dynarex document'
   s.authors = ['James Robertson']
-  s.files = Dir['lib/**/*.rb']
-  s.add_runtime_dependency('chronic_cron', '~> 0.2', '>=0.2.33')
-  s.add_runtime_dependency('dynarex', '~> 1.2', '>=1.2.90')
-  s.add_runtime_dependency('sps-pub', '~> 0.4', '>=0.4.0')  
+  s.files = Dir['lib/dynarex_cron.rb']
+  s.add_runtime_dependency('chronic_cron', '~> 0.3', '>=0.3.1')
+  s.add_runtime_dependency('dynarex', '~> 1.5', '>=1.5.26')
+  s.add_runtime_dependency('sps-sub-ping', '~> 0.1', '>=0.1.0')  
   s.signing_key = '../privatekeys/dynarex_cron.pem'
   s.cert_chain  = ['gem-public_cert.pem']  
   s.license = 'MIT'

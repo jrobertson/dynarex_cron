@@ -4,7 +4,8 @@
 
 require 'dynarex'
 require 'chronic_cron'
-require 'sps-pub'
+#require 'sps-pub'
+require 'sps-sub-ping'
 require 'logger'
 
 
@@ -44,6 +45,14 @@ class DynarexCron
     @running = true
     puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
+    
+    # run any background services
+
+    Thread.new do  
+      sp = SPSSubPing.new host: @sps_address, port: @sps_port, \
+                                                  identifier: 'DynarexCron'
+      sp.start
+    end
 
     sleep 1 until Time.now.sec == 0
 
