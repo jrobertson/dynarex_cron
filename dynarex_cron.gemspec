@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'dynarex_cron'
-  s.version = '0.8.0'
+  s.version = '0.8.1'
   s.summary = 'Publishes SimplePubSub messages by reading cron entries from a Dynarex document'
   s.authors = ['James Robertson']
   s.files = Dir['lib/dynarex_cron.rb']

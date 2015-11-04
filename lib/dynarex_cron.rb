@@ -136,7 +136,7 @@ class DynarexCron
           h[:cron].next # advances the time
         rescue
             
-          log h.inspect ' : ' + ($!).inspect
+          log h.inspect + ' : ' + ($!).inspect
         end
             
       end
