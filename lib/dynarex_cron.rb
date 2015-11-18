@@ -122,25 +122,15 @@ class DynarexCron
     cron_entries.each do |h|
       
       datetime = (Time.now + @time_offset).strftime(DF)
-      log "datetime: %s; h: %s" % [datetime, h.inspect]
       
       if h[:cron].to_time.strftime(DF) == datetime then
 
-        log "sps_Address: %s sps_port: %s fqm: %s" % \
-                                        [@sps_address, @sps_port, h[:fqm]]
-        begin
-          
-          SPSPub.notice h[:fqm].gsub('!Time',Time.now.strftime("%H:%M")), \
-                                          address: @sps_address, port:@sps_port
-          log 'before cron next', :info
-          h[:cron].next # advances the time
-        rescue
-            
-          log h.inspect + ' : ' + ($!).inspect
-        end
+        SPSPub.notice h[:fqm].gsub('!Time',Time.now.strftime("%H:%M")), \
+                                        address: @sps_address, port:@sps_port
+        h[:cron].next # advances the time
             
       end
-              
+
     end
   end
 
