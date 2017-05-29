@@ -4,8 +4,7 @@
 
 require 'dynarex'
 require 'chronic_cron'
-#require 'sps-pub'
-require 'sps-sub-ping'
+require 'sps-pub'
 require 'logger'
 
 
@@ -36,8 +35,8 @@ class DynarexCron
     end 
 
     @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
-
-
+    @pub = SPSPub.new address: @sps_address, port: @sps_port
+    
   end
 
   def start
@@ -46,13 +45,6 @@ class DynarexCron
     puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
     
-    # run any background services
-
-    Thread.new do  
-      sp = SPSSubPing.new host: @sps_address, port: @sps_port, \
-                                                  identifier: 'DynarexCron'
-      sp.start
-    end
 
     sleep 1 until Time.now.sec == 0
 
@@ -67,11 +59,10 @@ class DynarexCron
         # temporarily unavailable? i.e. 503 Service Temporarily Unavailable
         begin
           buffer, _ = RXFHelper.read(@dynarex_file)
+          reload_entries buffer if @buffer != buffer          
         rescue
           puts 'dynarex_cron: warning: ' + ($!).inspect           
-        end
-        
-        reload_entries buffer if @buffer != buffer
+        end        
 
       end
 
@@ -125,8 +116,16 @@ class DynarexCron
       
       if h[:cron].to_time.strftime(DF) == datetime then
 
-        SPSPub.notice h[:fqm].gsub('!Time',Time.now.strftime("%H:%M")), \
-                                        address: @sps_address, port:@sps_port
+        begin
+
+          @pub.notice h[:fqm].gsub('!Time',Time.now.strftime("%H:%M"))          
+
+        rescue
+          log 'cron ' + h[:cron].inspect, :info
+          log h.inspect + ' : ' + ($!).inspect
+
+        end
+        
         h[:cron].next # advances the time
             
       end
