@@ -5,7 +5,6 @@
 require 'dynarex'
 require 'chronic_cron'
 require 'sps-pub'
-require 'logger'
 
 
 DF = "%Y-%m-%d %H:%M"
@@ -14,37 +13,38 @@ class DynarexCron
 
   # options: e.g. sps_address: 'sps', sps_port: '59000'
   #
-  def initialize(dynarex_file=nil, options={})
+  def initialize(dxfile=nil, sps_address: 'sps', sps_port: '59000',  \
+      log: nil, time_offset: 0)
     
-    opt = {sps_address: 'sps', sps_port: '59000',  \
-      log: nil, time_offset: 0}.merge options
-    @logger = Logger.new(opt[:log],'weekly') if opt[:log]
+
+    @dxfile, @sps_address, @sps_port, @log = dxfile, sps_address, sps_port, log
 
     # time_offset: used for testing a cron entry without having to change 
     #              the time of each entry
-    @time_offset = opt[:time_offset].to_i
+    @time_offset = time_offset.to_i
     
     @cron_entries = []
     
-    @dynarex_file = dynarex_file
 
-    if @dynarex_file then
+    if @dxfile then
 
-      dynarex = load_doc dynarex_file
+      dynarex = load_doc dxfile
       load_entries(dynarex)
     end 
 
-    @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
-    @pub = SPSPub.new address: @sps_address, port: @sps_port
+    @pub = SPSPub.new address: sps_address, port: sps_port
     
   end
 
   def start
 
     @running = true
-    puts '[' + (Time.now + @time_offset).strftime(DF) + '] DynarexCron started'
-    params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}
     
+    if @log then
+      @log.info 'DynarexCron/start: Time.now: ' \
+          + (Time.now + @time_offset).strftime(DF)
+    end
+        
 
     sleep 1 until Time.now.sec == 0
 
@@ -53,12 +53,12 @@ class DynarexCron
 
       iterate @cron_entries
 
-      if @dynarex_file.is_a? String then
+      if @dxfile.is_a? String then
 
-        # What happens if the @dynarex_file is a URL and the web server is 
+        # What happens if the @dxfile is a URL and the web server is 
         # temporarily unavailable? i.e. 503 Service Temporarily Unavailable
         begin
-          buffer, _ = RXFHelper.read(@dynarex_file)
+          buffer, _ = RXFHelper.read(@dxfile)
           reload_entries buffer if @buffer != buffer          
         rescue
           puts 'dynarex_cron: warning: ' + ($!).inspect           
@@ -103,27 +103,35 @@ class DynarexCron
     end
   end  
   
-  def log(s, method_name=:debug)
-    return unless @logger
-    @logger.method(method_name).call s
-  end
 
   def iterate(cron_entries)
     
     cron_entries.each do |h|
       
       datetime = (Time.now + @time_offset).strftime(DF)
+      @log.info 'DynarexCron/iterate: datetime: ' + datetime if @log
+      @log.info 'DynarexCron/iterate: cron.to_time: ' + h[:cron].to_time.strftime(DF) if @log
       
       if h[:cron].to_time.strftime(DF) == datetime then
 
         begin
 
-          @pub.notice h[:fqm].gsub('!Time',Time.now.strftime("%H:%M"))          
+          if h[:fqm].empty? and @log then
+            @log.debug 'DynarexCron/iterate: no h[:fqw] found ' + h.inspect
+          end
+          
+          msg = h[:fqm].gsub('!Time',Time.now.strftime("%H:%M"))
+
+          @pub.notice msg
 
         rescue
-          log 'cron ' + h[:cron].inspect, :info
-          log h.inspect + ' : ' + ($!).inspect
-
+          
+          if @log then
+            @log.debug 'DynarexCron/iterate: cron: ' + h[:cron].inspect
+            @log.debug 'DynarexCron/iterate: h: ' + h.inspect + ' : ' \
+                + ($!).inspect
+          end
+          
         end
         
         h[:cron].next # advances the time
