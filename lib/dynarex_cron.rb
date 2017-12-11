@@ -28,7 +28,7 @@ class DynarexCron
 
     if @dxfile then
 
-      dynarex = load_doc dxfile
+      dynarex,_ = load_doc dxfile
       load_entries(dynarex)
     end 
 
@@ -58,10 +58,13 @@ class DynarexCron
         # What happens if the @dxfile is a URL and the web server is 
         # temporarily unavailable? i.e. 503 Service Temporarily Unavailable
         begin
-          buffer, _ = RXFHelper.read(@dxfile)
-          reload_entries buffer if @buffer != buffer          
+
+          dx, buffer = load_doc(@dxfile)
+          load_entries dx if @buffer != buffer          
+          @buffer = buffer
+          
         rescue
-          puts 'dynarex_cron: warning: ' + ($!).inspect           
+          @log.debug 'DynarexCron/start: warning: ' + ($!).inspect
         end        
 
       end
@@ -84,20 +87,24 @@ class DynarexCron
     if dynarex_file.is_a?(Dynarex) then
       dynarex_file
     else
-      @buffer, _ = RXFHelper.read(dynarex_file)
-      Dynarex.new @buffer
+      
+      buffer, _ = RXFHelper.read(dynarex_file)      
+      dx = buffer =~ /<?dynarex/ ? Dynarex.new.import(buffer) : \
+          Dynarex.new(buffer)
+      
+      [dx, buffer]
     end
         
   end
 
-  def load_entries(dynarex)
+  def load_entries(dx)
     
-    if dynarex.summary[:sps_address] then
-      @sps_address, @sps_port = dynarex.summary[:sps_address]\
+    if dx.summary[:sps_address] then
+      @sps_address, @sps_port = dx.summary[:sps_address]\
                                                     .split(':',2) << '59000'
     end
     
-    @cron_entries = dynarex.to_h
+    @cron_entries = dx.to_h
     @cron_entries.each do |h| 
       h[:cron] = ChronicCron.new(h[:expression], Time.now + @time_offset)
     end
@@ -109,8 +116,12 @@ class DynarexCron
     cron_entries.each do |h|
       
       datetime = (Time.now + @time_offset).strftime(DF)
-      @log.info 'DynarexCron/iterate: datetime: ' + datetime if @log
-      @log.info 'DynarexCron/iterate: cron.to_time: ' + h[:cron].to_time.strftime(DF) if @log
+      
+      if @log then
+        @log.info 'DynarexCron/iterate: datetime: ' + datetime
+        @log.info 'DynarexCron/iterate: cron.to_time: ' \
+            + h[:cron].to_time.strftime(DF)
+      end
       
       if h[:cron].to_time.strftime(DF) == datetime then
 
@@ -141,10 +152,4 @@ class DynarexCron
     end
   end
 
-  def reload_entries(buffer)    
-
-    load_entries Dynarex.new(buffer)
-    @buffer = buffer
-  end   
-  
 end
