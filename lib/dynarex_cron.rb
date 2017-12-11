@@ -14,7 +14,7 @@ class DynarexCron
   # options: e.g. sps_address: 'sps', sps_port: '59000'
   #
   def initialize(dxfile=nil, sps_address: 'sps', sps_port: '59000',  \
-      log: nil, time_offset: 0)
+      log: nil, time_offset: 0, logtopic: 'DynarexCron')
     
 
     @dxfile, @sps_address, @sps_port, @log = dxfile, sps_address, sps_port, log
@@ -24,6 +24,7 @@ class DynarexCron
     @time_offset = time_offset.to_i
     
     @cron_entries = []
+    @logtopic = logtopic
     
 
     if @dxfile then
@@ -41,7 +42,7 @@ class DynarexCron
     @running = true
     
     if @log then
-      @log.info 'DynarexCron/start: Time.now: ' \
+      @log.info @logtopic + '/start: Time.now: ' \
           + (Time.now + @time_offset).strftime(DF)
     end
         
@@ -64,7 +65,7 @@ class DynarexCron
           @buffer = buffer
           
         rescue
-          @log.debug 'DynarexCron/start: warning: ' + ($!).inspect
+          @log.debug @logtopic + '/start: warning: ' + ($!).inspect
         end        
 
       end
@@ -118,8 +119,8 @@ class DynarexCron
       datetime = (Time.now + @time_offset).strftime(DF)
       
       if @log then
-        @log.info 'DynarexCron/iterate: datetime: ' + datetime
-        @log.info 'DynarexCron/iterate: cron.to_time: ' \
+        @log.info @logtopic + '/iterate: datetime: ' + datetime
+        @log.info @logtopic + '/iterate: cron.to_time: ' \
             + h[:cron].to_time.strftime(DF)
       end
       
@@ -128,7 +129,7 @@ class DynarexCron
         begin
 
           if h[:fqm].empty? and @log then
-            @log.debug 'DynarexCron/iterate: no h[:fqw] found ' + h.inspect
+            @log.debug @logtopic + '/iterate: no h[:fqw] found ' + h.inspect
           end
           
           msg = h[:fqm].gsub('!Time',Time.now.strftime("%H:%M"))
@@ -138,8 +139,8 @@ class DynarexCron
         rescue
           
           if @log then
-            @log.debug 'DynarexCron/iterate: cron: ' + h[:cron].inspect
-            @log.debug 'DynarexCron/iterate: h: ' + h.inspect + ' : ' \
+            @log.debug @logtopic + '/iterate: cron: ' + h[:cron].inspect
+            @log.debug @logtopic + '/iterate: h: ' + h.inspect + ' : ' \
                 + ($!).inspect
           end
           

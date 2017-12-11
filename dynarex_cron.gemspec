@@ -1,7 +1,8 @@
 Gem::Specification.new do |s|
   s.name = 'dynarex_cron'
-  s.version = '0.9.1'
-  s.summary = 'Publishes SimplePubSub messages by reading cron entries from a Dynarex document'
+  s.version = '0.9.2'
+  s.summary = 'Publishes SimplePubSub messages by reading cron ' + 
+      'entries from a Dynarex document'
   s.authors = ['James Robertson']
   s.files = Dir['lib/dynarex_cron.rb']
   s.add_runtime_dependency('chronic_cron', '~> 0.3', '>=0.3.7')
