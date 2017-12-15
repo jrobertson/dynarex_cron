@@ -90,7 +90,7 @@ class DynarexCron
     else
       
       buffer, _ = RXFHelper.read(dynarex_file)      
-      dx = buffer =~ /<?dynarex/ ? Dynarex.new.import(buffer) : \
+      dx = buffer =~ /<\?dynarex/ ? Dynarex.new.import(buffer) : \
           Dynarex.new(buffer)
       
       [dx, buffer]
