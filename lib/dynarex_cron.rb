@@ -105,7 +105,7 @@ class DynarexCron
                                                     .split(':',2) << '59000'
     end
     
-    @cron_entries = dx.to_h
+    @cron_entries = dx.to_a
     @cron_entries.each do |h| 
       h[:cron] = ChronicCron.new(h[:expression], Time.now + @time_offset)
     end
